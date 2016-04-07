@@ -56,12 +56,39 @@ public class SingleThreadedServerActivity extends Activity {
 		
 		private ServerSocket serverSocket;
 		
+		class Worker extends Thread
+		{
+			Socket socket;
+			PrintWriter writer;
+			public Worker(Socket socket, PrintWriter writer)
+			{
+				this.socket = socket;
+				this.writer = writer;
+			}
+			public void run()
+			{
+				try {
+					Thread.sleep(3000);
+				} catch (InterruptedException interruptedException) {
+					Log.e(Constants.TAG, interruptedException.getMessage());
+					if (Constants.DEBUG) {
+						interruptedException.printStackTrace();
+					}
+				}
+				writer.println(serverTextEditText.getText().toString());
+				try {
+					socket.close();
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+		}
 		public void startServer() {
 			isRunning = true;
 			start();
 			Log.v(Constants.TAG, "startServer() method invoked "+serverSocket);
 		}
-		
 		public void stopServer() {
 			isRunning = false;
 			new Thread(new Runnable() {
@@ -81,7 +108,6 @@ public class SingleThreadedServerActivity extends Activity {
 				}
 			}).start();
 		}
-		
 		@Override
 		public void run() {
 			try {
@@ -90,8 +116,8 @@ public class SingleThreadedServerActivity extends Activity {
 					Socket socket = serverSocket.accept();
 					Log.v(Constants.TAG, "Connection opened with "+socket.getInetAddress()+":"+socket.getLocalPort());
 					PrintWriter printWriter = Utilities.getWriter(socket);
-					printWriter.println(serverTextEditText.getText().toString());
-					socket.close();
+					Worker work = new Worker(socket, printWriter);
+					work.start();
 					Log.v(Constants.TAG, "Connection closed");
 				}
 			} catch (IOException ioException) {
@@ -102,23 +128,19 @@ public class SingleThreadedServerActivity extends Activity {
 			}
 		}
 	}
-
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
-		setContentView(R.layout.activity_single_threaded_server);	
-		
+		setContentView(R.layout.activity_single_threaded_server);
 		serverTextEditText = (EditText)findViewById(R.id.server_text_edit_text);
 		serverTextEditText.addTextChangedListener(serverTextContentWatcher);
 	}
-
 	@Override
 	public boolean onCreateOptionsMenu(Menu menu) {
 		// Inflate the menu; this adds items to the action bar if it is present.
 		getMenuInflater().inflate(R.menu.single_threaded_server, menu);
 		return true;
 	}
-
 	@Override
 	public boolean onOptionsItemSelected(MenuItem item) {
 		// Handle action bar item clicks here. The action bar will
@@ -130,4 +152,11 @@ public class SingleThreadedServerActivity extends Activity {
 		}
 		return super.onOptionsItemSelected(item);
 	}
+	@Override
+	public void onDestroy() {
+		super.onDestroy();
+		singleThreadedServer.stopServer();
+	}
 }
+
+
